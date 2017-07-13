@@ -30,25 +30,39 @@
         <TextView
             android:id="@+id/music_to_word"
             android:layout_width="match_parent"
-            android:layout_height="107dp"
+            android:layout_height="150dp"
             android:background="#FFFFFF"
             android:layout_gravity="center_horizontal"
-            android:enabled="true"
             android:textIsSelectable="true"
-            android:focusable="true"
-            android:longClickable="true"
+
             android:text="" />
 
     </LinearLayout>
 
-
-    <Button
-        android:id="@+id/btn_clean"
-        android:layout_gravity="end"
+    <LinearLayout
         android:layout_width="wrap_content"
-        android:layout_marginRight="5dp"
-        android:layout_height="wrap_content"
-        android:text="清除" />
+        android:orientation="horizontal"
+        android:layout_gravity="end"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/btn_copy"
+            android:layout_width="wrap_content"
+            android:layout_marginLeft="5dp"
+            android:layout_height="wrap_content"
+            android:text="复制" />
+
+        <Button
+            android:id="@+id/btn_clean"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:layout_marginRight="5dp"
+            android:text="清除" />
+
+    </LinearLayout>
+
+
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -58,6 +72,7 @@
         <come.example.liuhaifeng.newseepdemo.Myseekbar
             android:id="@+id/myseekbar"
             android:layout_width="match_parent"
+            android:thumb="@null"
             android:layout_height="match_parent" />
     </LinearLayout>
 

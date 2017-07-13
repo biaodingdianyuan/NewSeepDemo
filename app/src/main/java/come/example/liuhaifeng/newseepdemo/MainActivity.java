@@ -2,6 +2,7 @@ package come.example.liuhaifeng.newseepdemo;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -16,9 +17,11 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.iflytek.cloud.ErrorCode;
 import com.iflytek.cloud.InitListener;
+import com.iflytek.cloud.LexiconListener;
 import com.iflytek.cloud.RecognizerListener;
 import com.iflytek.cloud.RecognizerResult;
 import com.iflytek.cloud.SpeechConstant;
@@ -30,6 +33,7 @@ import com.iflytek.sunflower.FlowerCollector;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
@@ -45,6 +49,8 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     Button musicYiny;
     @InjectView(R.id.btn_clean)
     Button btnClean;
+    @InjectView(R.id.btn_copy)
+    Button btnCopy;
     private String mEngineType = SpeechConstant.TYPE_CLOUD;
     @InjectView(R.id.music_to_word)
     TextView musicToWord;
@@ -63,7 +69,9 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
     private int maxVolume, currentVolume;
     private HashMap<String, String> mIatResults = new LinkedHashMap<String, String>();
     int ret = 0;
+    private String mLocalLexicon = null;
     String s = "";
+    String str="弧光";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,11 +81,14 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID + "=5949d643");
         mIat = SpeechRecognizer.createRecognizer(MainActivity.this, mInitListener);
         ButterKnife.inject(this);
+        setParam();
         audiomanage = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         btnClean.setOnClickListener(this);
+        btnCopy.setOnClickListener(this);
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         myseekbar.setProgress(audioManager.getStreamVolume(AudioManager.STREAM_SYSTEM));
         myRegisterReceiver();
+
         mVoiceObserver = new ContentObserver(new Handler()) {
             @Override
             public void onChange(boolean selfChange) {
@@ -179,8 +190,24 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
 
     @Override
     public void onClick(View v) {
-        musicToWord.setText("");
-        s = "";
+        switch (v.getId()){
+            case R.id.btn_clean:
+                musicToWord.setText("");
+                s = "";
+                break;
+            case R.id.btn_copy:
+                ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                // 将文本内容放到系统剪贴板里。
+                cm.setText(s);
+                Toast.makeText(MainActivity.this, "复制成功", Toast.LENGTH_LONG).show();
+
+                break;
+        }
+
+
+
+
+
     }
 
     /**
@@ -210,10 +237,11 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         // 清空参数
         mIat.setParameter(SpeechConstant.PARAMS, null);
 
+
         // 设置听写引擎
-        mIat.setParameter(SpeechConstant.ENGINE_TYPE, mEngineType);
         // 设置返回结果格式
         mIat.setParameter(SpeechConstant.RESULT_TYPE, "json");
+        mIat.setParameter( SpeechConstant.ENGINE_TYPE, SpeechConstant.TYPE_CLOUD );
 
 
         if (lag.equals("en_us")) {
@@ -231,7 +259,7 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         mIat.setParameter(SpeechConstant.VAD_BOS, "10000");
 
         // 设置语音后端点:后端点静音检测时间，即用户停止说话多长时间内即认为不再输入， 自动停止录音
-        mIat.setParameter(SpeechConstant.VAD_EOS, "5000");
+        mIat.setParameter(SpeechConstant.VAD_EOS, "300000");
 
         // 设置标点符号,设置为"0"返回结果无标点,设置为"1"返回结果有标点
         mIat.setParameter(SpeechConstant.ASR_PTT, "1");
@@ -240,6 +268,24 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         // 注：AUDIO_FORMAT参数语记需要更新版本才能生效
         mIat.setParameter(SpeechConstant.AUDIO_FORMAT, "wav");
         mIat.setParameter(SpeechConstant.ASR_AUDIO_PATH, Environment.getExternalStorageDirectory() + "/msc/iat.wav");
+
+        mLocalLexicon=readFile(MainActivity.this, "userwords","utf-8");
+        Log.d("****",mLocalLexicon);
+
+        mIat.setParameter(SpeechConstant.TEXT_ENCODING,"utf-8");
+        String mContent=new String(mLocalLexicon);
+
+       int re= mIat.updateLexicon("userword",mContent, mLexiconListener);
+        if(re != ErrorCode.SUCCESS){
+            if(re == ErrorCode.ERROR_COMPONENT_NOT_INSTALLED){
+                //未安装则跳转到提示安装页面
+//                mInstaller.install();
+            }else {
+//                showTip("更新词典失败,错误码：" + ret);
+            }
+        }
+
+
     }
 
     /**
@@ -344,4 +390,31 @@ public class MainActivity extends Activity implements SeekBar.OnSeekBarChangeLis
         FlowerCollector.onPause(MainActivity.this);
         super.onPause();
     }
+    public static String readFile(Context mContext,String file,String code)
+    {
+        int len = 0;
+        byte []buf = null;
+        String result = "";
+        try {
+            InputStream in = mContext.getAssets().open(file);
+            len  = in.available();
+            buf = new byte[len];
+            in.read(buf, 0, len);
+
+            result = new String(buf,code);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+    private LexiconListener mLexiconListener = new LexiconListener() {
+        @Override
+        public void onLexiconUpdated(String lexiconId, SpeechError error) {
+            if(error==null){
+                Toast.makeText(MainActivity.this,"词典更新成功",Toast.LENGTH_SHORT).show();
+            }else{
+                Toast.makeText(MainActivity.this,"词典更新失败,错误码："+error.getErrorCode(),Toast.LENGTH_SHORT).show();
+            }
+        }
+    };
 }
